@@ -20,7 +20,7 @@
 
 %% Interface module for the file server and the file io servers.
 
-
+-export([file_name_2/2]).
 
 %%% External exports
 
@@ -1425,18 +1425,95 @@ file_name(N) ->
         {error, Reason}
     end.
 
-file_name_1([C|T],latin1) when is_integer(C), C < 256->
-    [C|file_name_1(T,latin1)];
-file_name_1([C|T],utf8) when is_integer(C) ->
-    [C|file_name_1(T,utf8)];
-file_name_1([H|T],E) ->
-    file_name_1(H,E) ++ file_name_1(T,E);
-file_name_1([],_) ->
-    [];
-file_name_1(N,_) when is_atom(N) ->
-    atom_to_list(N);
-file_name_1(_,_) ->
+% file_name_1([C|T],latin1) when is_integer(C), C < 256->
+%     [C|file_name_1(T,latin1)];
+% file_name_1([C|T],utf8) when is_integer(C) ->
+%     [C|file_name_1(T,utf8)];
+% file_name_1([H|T],E) ->
+%     file_name_1(H,E) ++ file_name_1(T,E);
+% file_name_1([],_) ->
+%     [];
+% file_name_1(N,_) when is_atom(N) ->
+%     atom_to_list(N);
+% file_name_1(_,_) ->
+%     throw(badarg).
+
+% exported
+file_name_2(L, Encoding) ->
+    file_name_1(L, Encoding).
+
+-spec file_name_1(L::name(), Encoding::latin1 | utf8) -> filename_all().
+file_name_1(L, latin1) ->
+    %erlang:iolist_to_binary(file_name_1_latin1(L));
+    file_name_1_latin1(L);
+file_name_1(L, utf8) ->
+    file_name_1_utf8(L);
+file_name_1(_, _) ->
     throw(badarg).
+
+% this version returns an IO-list
+
+% file_name_1_latin1([C|T]) when is_integer(C), C < 256 ->
+%     [C|file_name_1_latin1(T)];
+% file_name_1_latin1([H|T]) ->
+%     [file_name_1_latin1(H), file_name_1_latin1(T)];
+% file_name_1_latin1([]) ->
+%     [];
+% file_name_1_latin1(N) when is_atom(N) ->
+%     atom_to_list(N);
+% file_name_1_latin1(_) ->
+%     throw(badarg).
+
+% this version builds a binary
+%-spec file_name_1_latin1(L::name()) -> binary().
+% file_name_1_latin1([C|T]) when is_integer(C), C < 256 ->
+%     <<C, (file_name_1_latin1(T))/bytes>>;
+% file_name_1_latin1([H|T]) ->
+%     << (file_name_1_latin1(H))/bytes, (file_name_1_latin1(T))/bytes >>;
+% file_name_1_latin1([]) ->
+%     <<>>;
+% file_name_1_latin1(N) when is_atom(N) ->
+%     atom_to_binary(N, latin1);
+% file_name_1_latin1(_) ->
+%     throw(badarg).
+
+% this version builds a binary using tail-recursion
+-spec file_name_1_latin1(L::name()) -> binary().
+file_name_1_latin1(L) when is_list(L) ->
+    file_name_1_latin1(L, <<>>);
+file_name_1_latin1(N) when is_atom(N) ->
+    atom_to_binary(N, latin1);
+file_name_1_latin1(_) ->
+    throw(badarg).
+
+file_name_1_latin1([C|T], A) when is_integer(C), C < 256 ->
+    file_name_1_latin1(T, <<A/bytes, C>>);
+file_name_1_latin1([N|T], A) when is_atom(N) ->
+    AtomBin = atom_to_binary(N, latin1),
+    file_name_1_latin1(T, <<A/bytes, AtomBin/bytes>>);
+file_name_1_latin1([H|T], A) when is_list(H) ->
+    HBin = file_name_1_latin1(H, <<>>),
+    file_name_1_latin1(T, <<A/bytes, HBin/bytes>>);
+file_name_1_latin1([_|_], _) ->
+    throw(badarg);
+file_name_1_latin1([], A) ->
+    A.
+
+
+% the UTF8 version still build a list
+-spec file_name_1_utf8(L::deep_list()) -> string(). % list of unicode endpoints
+file_name_1_utf8([C|T]) when is_integer(C) ->
+    [C|file_name_1_utf8(T)];
+file_name_1_utf8([H|T]) ->
+    %lists:flatten([file_name_1_utf8(H), file_name_1_utf8(T)]);
+    file_name_1_utf8(H) ++ file_name_1_utf8(T);
+file_name_1_utf8([]) ->
+    [];
+file_name_1_utf8(N) when is_atom(N) ->
+    atom_to_list(N);
+file_name_1_utf8(_) ->
+    throw(badarg).
+
 
 make_binary(Bin) when is_binary(Bin) ->
     Bin;
