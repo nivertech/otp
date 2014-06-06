@@ -613,7 +613,8 @@ enter_file_reply(From, Name, Location, AtLocation) ->
     epp_reply(From, Rep).
 
 %% Flatten filename to a string. Must be a valid filename.
-
+file_name(B) when is_binary(B) ->
+    B;
 file_name([C | T]) when is_integer(C), C > 0 ->
     [C | file_name(T)];
 file_name([H|T]) ->
